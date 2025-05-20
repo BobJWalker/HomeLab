@@ -20,6 +20,7 @@ process {
         action {
             action_type = "Octopus.KubernetesRunScript"
             properties = {
+                Octopus.Action.RunOnServer = "false"
                 Octopus.Action.Script.ScriptBody = "kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.9.5/deploy/static/provider/cloud/deploy.yaml"
                 Octopus.Action.Script.ScriptSource = "Inline"
                 Octopus.Action.Script.Syntax = "Bash"
@@ -38,6 +39,7 @@ process {
             action_type = "Octopus.KubernetesRunScript"
             properties = {
                 Octopus.Action.KubernetesContainers.Namespace = "kube-system"
+                Octopus.Action.RunOnServer = "false"
                 Octopus.Action.Script.ScriptBody = <<-EOT
                     helm repo add secrets-store-csi-driver https://kubernetes-sigs.github.io/secrets-store-csi-driver/charts
                     helm repo update
@@ -62,9 +64,33 @@ process {
         action {
             action_type = "Octopus.KubernetesRunScript"
             properties = {
+                Octopus.Action.RunOnServer = "false"
                 Octopus.Action.Script.ScriptBody = "kubectl apply -f https://raw.githubusercontent.com/Azure/secrets-store-csi-driver-provider-azure/refs/heads/master/deployment/provider-azure-installer.yaml"
                 Octopus.Action.Script.ScriptSource = "Inline"
                 Octopus.Action.Script.Syntax = "Bash"
+            }
+            worker_pool_variable = ""
+        }
+    }
+
+    step "deploy-azure-sp-secret" {
+        name = "Deploy Azure SP Secret"
+        properties = {
+            Octopus.Action.TargetRoles = "homelab-cluster"
+        }
+
+        action {
+            action_type = "Octopus.KubernetesDeployRawYaml"
+            properties = {
+                Octopus.Action.GitRepository.FilePathFilters = "k8s\\azure-principle.yaml"
+                Octopus.Action.GitRepository.Source = "Project"
+                Octopus.Action.Kubernetes.DeploymentTimeout = "180"
+                Octopus.Action.Kubernetes.ResourceStatusCheck = "True"
+                Octopus.Action.Kubernetes.ServerSideApply.Enabled = "True"
+                Octopus.Action.Kubernetes.ServerSideApply.ForceConflicts = "True"
+                Octopus.Action.KubernetesContainers.CustomResourceYamlFileName = "k8s\\azure-principle.yaml"
+                Octopus.Action.Package.JsonConfigurationVariablesTargets = "**/*.{yml,yaml}"
+                Octopus.Action.Script.ScriptSource = "GitRepository"
             }
             worker_pool_variable = ""
         }
