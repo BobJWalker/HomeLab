@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: azure-sp-secret
+  namespace: default
+type: Opaque
+stringData:
+  clientid: <clientId>
+  clientsecret: <clientSecret>
