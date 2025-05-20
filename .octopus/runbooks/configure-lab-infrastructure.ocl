@@ -44,7 +44,7 @@ process {
                     helm repo add secrets-store-csi-driver https://kubernetes-sigs.github.io/secrets-store-csi-driver/charts
                     helm repo update
                     
-                    helm install csi-secrets-store secrets-store-csi-driver/secrets-store-csi-driver \
+                    helm update csi-secrets-store secrets-store-csi-driver/secrets-store-csi-driver \
                       --namespace kube-system \
                       --set syncSecret.enabled=true
                     EOT
@@ -90,6 +90,7 @@ process {
                 Octopus.Action.Kubernetes.ServerSideApply.ForceConflicts = "True"
                 Octopus.Action.KubernetesContainers.CustomResourceYamlFileName = "k8s\\azure-principle.yaml"
                 Octopus.Action.Package.JsonConfigurationVariablesTargets = "**/*.{yml,yaml}"
+                Octopus.Action.RunOnServer = "false"
                 Octopus.Action.Script.ScriptSource = "GitRepository"
             }
             worker_pool_variable = ""
