@@ -44,7 +44,7 @@ process {
                     helm repo add secrets-store-csi-driver https://kubernetes-sigs.github.io/secrets-store-csi-driver/charts
                     helm repo update
                     
-                    helm update csi-secrets-store secrets-store-csi-driver/secrets-store-csi-driver \
+                    helm upgrade csi-secrets-store secrets-store-csi-driver/secrets-store-csi-driver \
                       --namespace kube-system \
                       --set syncSecret.enabled=true
                     EOT
