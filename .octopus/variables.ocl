@@ -1,0 +1,5 @@
+variable "Project.Azure.Account" {
+    type = "AzureAccount"
+
+    value "samples-and-demos" {}
+}

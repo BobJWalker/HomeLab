@@ -1,0 +1,72 @@
+name = "Configure Lab Infrastructure"
+default_guided_failure_mode = "EnvironmentDefault"
+description = "Runbook to configure the lab's infrastructure"
+
+connectivity_policy {
+    allow_deployments_to_no_targets = true
+}
+
+run_retention_policy {
+    quantity_to_keep = 100
+}
+
+process {
+    step "install-nginx-ingress-controller" {
+        name = "Install NGINX Ingress Controller"
+        properties = {
+            Octopus.Action.TargetRoles = "homelab-cluster"
+        }
+
+        action {
+            action_type = "Octopus.KubernetesRunScript"
+            properties = {
+                Octopus.Action.Script.ScriptBody = "kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.9.5/deploy/static/provider/cloud/deploy.yaml"
+                Octopus.Action.Script.ScriptSource = "Inline"
+                Octopus.Action.Script.Syntax = "Bash"
+            }
+            worker_pool_variable = ""
+        }
+    }
+
+    step "install-key-vault-csi-driver" {
+        name = "Install Key Vault CSI Driver"
+        properties = {
+            Octopus.Action.TargetRoles = "homelab-cluster"
+        }
+
+        action {
+            action_type = "Octopus.KubernetesRunScript"
+            properties = {
+                Octopus.Action.KubernetesContainers.Namespace = "kube-system"
+                Octopus.Action.Script.ScriptBody = <<-EOT
+                    helm repo add secrets-store-csi-driver https://kubernetes-sigs.github.io/secrets-store-csi-driver/charts
+                    helm repo update
+                    
+                    helm install csi-secrets-store secrets-store-csi-driver/secrets-store-csi-driver \
+                      --namespace kube-system \
+                      --set syncSecret.enabled=true
+                    EOT
+                Octopus.Action.Script.ScriptSource = "Inline"
+                Octopus.Action.Script.Syntax = "Bash"
+            }
+            worker_pool_variable = ""
+        }
+    }
+
+    step "install-the-azure-key-vault-csi-driver" {
+        name = "Install the Azure Key Vault CSI Driver"
+        properties = {
+            Octopus.Action.TargetRoles = "homelab-cluster"
+        }
+
+        action {
+            action_type = "Octopus.KubernetesRunScript"
+            properties = {
+                Octopus.Action.Script.ScriptBody = "kubectl apply -f https://raw.githubusercontent.com/Azure/secrets-store-csi-driver-provider-azure/refs/heads/master/deployment/provider-azure-installer.yaml"
+                Octopus.Action.Script.ScriptSource = "Inline"
+                Octopus.Action.Script.Syntax = "Bash"
+            }
+            worker_pool_variable = ""
+        }
+    }
+}
