@@ -3,3 +3,11 @@ variable "Project.Azure.Account" {
 
     value "samples-and-demos" {}
 }
+
+variable "stringData:clientsecret" {
+    value "#{Project.Azure.Account.Password}" {}
+}
+
+variable "stringData:clientid" {
+    value "#{Project.Azure.Account.Client}" {}
+}
