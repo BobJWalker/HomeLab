@@ -28,4 +28,8 @@ process_template "deploy-to-the-mainframe" {
     parameter "Frame.Worker.Pool" {
         value = "WorkerPools-423"
     }
+
+    parameter "Frame.Docker.Feed" {
+        value = "Feeds-1283"
+    }
 }
