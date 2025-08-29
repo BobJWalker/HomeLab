@@ -11,3 +11,20 @@ variable "stringData:clientsecret" {
 variable "stringData:clientid" {
     value "#{Project.Azure.Account.Client}" {}
 }
+
+variable "Project.Azure.KeyVault.Name" {
+    value "bobjwalker-vault" {}
+}
+
+variable "Project.Azure.KeyVault.Secrets" {
+    value {
+        value = <<-EOT
+                azure-sql-server | SQLServerName
+                azure-sql-password | SQLUserPassword
+                azure-sql-username | SQLUserName
+                octopus-api-key | OctopusApiKey
+                github-token | GitHubToken
+                sumo-logic-url | SumoLogicUrl
+                EOT
+    }
+}
