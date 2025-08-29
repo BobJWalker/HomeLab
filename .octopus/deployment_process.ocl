@@ -1,0 +1,9 @@
+process_template "deploy-to-the-mainframe" {
+    name = "Deploy to the mainframe"
+    process_template_slug = "deploy-process-to-the-frame"
+    version_mask = "1.X"
+
+    parameter "Frame.Worker.Pool" {
+        value = "WorkerPools-423"
+    }
+}
