@@ -1,9 +1,3 @@
-variable "Project.Azure.Account" {
-    type = "AzureAccount"
-
-    value "samples-and-demos" {}
-}
-
 variable "stringData:clientsecret" {
     value "#{Project.Azure.Account.Password}" {}
 }
@@ -27,4 +21,10 @@ variable "Project.Azure.KeyVault.Secrets" {
                 sumo-logic-url | SumoLogicUrl
                 EOT
     }
+}
+
+variable "Project.Azure.Account" {
+    type = "AzureAccount"
+
+    value "azure-oidc" {}
 }
