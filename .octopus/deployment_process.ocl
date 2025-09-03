@@ -1,25 +1,3 @@
-step "azure-key-vault-retrieve-secrets" {
-    name = "Azure Key Vault - Retrieve Secrets"
-
-    action {
-        properties = {
-            Azure.KeyVault.RetrieveSecrets.Account = "Project.Azure.Account"
-            Azure.KeyVault.RetrieveSecrets.PrintVariableNames = "False"
-            Azure.KeyVault.RetrieveSecrets.VaultName = "#{Project.Azure.KeyVault.Name}"
-            Azure.KeyVault.RetrieveSecrets.VaultSecrets = "#{Project.Azure.KeyVault.Secrets}"
-            Octopus.Action.Template.Id = "ActionTemplates-561"
-            Octopus.Action.Template.Version = "2"
-        }
-        worker_pool = "homelab-k8s"
-        worker_pool_variable = ""
-
-        container {
-            feed = "dockerhub"
-            image = "#{Standards.Azure.ExecutionContainer}"
-        }
-    }
-}
-
 process_template "deploy-to-the-mainframe" {
     name = "Deploy to the mainframe"
     process_template_slug = "deploy-process-to-the-frame"
