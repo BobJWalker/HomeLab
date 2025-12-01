@@ -1,6 +1,8 @@
 name = "Verify K8s Infrastructure"
 default_guided_failure_mode = "EnvironmentDefault"
 description = ""
+environment_scope = "FromProjectLifecycles"
+multi_tenancy_mode = "Tenanted"
 
 connectivity_policy {
     allow_deployments_to_no_targets = true
