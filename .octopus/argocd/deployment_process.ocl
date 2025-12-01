@@ -20,7 +20,7 @@ step "azure-key-vault-retrieve-secrets" {
 }
 
 step "run-octopus-deploy-runbook" {
-    name = "Run Octopus Deploy Runbook"
+    name = "Verify K8s Infrastructure"
 
     action {
         properties = {
@@ -47,36 +47,52 @@ step "run-octopus-deploy-runbook" {
     }
 }
 
-step "deploy-kubernetes-yaml" {
-    name = "Deploy Kubernetes YAML"
+step "deploy-argo-helm" {
+    name = "Deploy Argo Helm"
     properties = {
         Octopus.Action.TargetRoles = "argocd-managed"
     }
 
     action {
-        action_type = "Octopus.KubernetesDeployRawYaml"
+        action_type = "Octopus.HelmChartUpgrade"
         properties = {
-            Octopus.Action.Kubernetes.DeploymentTimeout = "180"
+            Octopus.Action.Helm.Namespace = "argocd"
+            Octopus.Action.Helm.ReleaseName = "argocd"
+            Octopus.Action.Helm.ResetValues = "True"
             Octopus.Action.Kubernetes.ResourceStatusCheck = "True"
-            Octopus.Action.Kubernetes.ServerSideApply.Enabled = "True"
-            Octopus.Action.Kubernetes.ServerSideApply.ForceConflicts = "True"
-            Octopus.Action.KubernetesContainers.CustomResourceYamlFileName = "manifests/install.yaml"
-            Octopus.Action.KubernetesContainers.Namespace = "argocd"
             Octopus.Action.Package.DownloadOnTentacle = "False"
-            Octopus.Action.Package.FeedId = "gh-repo"
-            Octopus.Action.Package.PackageId = "argoproj/argo-cd"
+            Octopus.Action.Package.FeedId = "github-argo-oci"
+            Octopus.Action.Package.PackageId = "argo-helm/argo-cd"
             Octopus.Action.Script.ScriptSource = "Package"
         }
         worker_pool_variable = "Standards.Worker.Pool"
 
         packages {
             acquisition_location = "Server"
-            feed = "gh-repo"
-            package_id = "argoproj/argo-cd"
+            feed = "github-argo-oci"
+            package_id = "argo-helm/argo-cd"
             properties = {
                 SelectionMode = "immediate"
             }
         }
+    }
+}
+
+step "configure-argocd-instance" {
+    name = "Configure ArgoCD Instance"
+
+    action {
+        action_type = "Octopus.Script"
+        properties = {
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                Write-Host "Performing additional ArgoCD configuration."
+                Write-Host "Finished!"
+                EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "PowerShell"
+            OctopusUseBundledTooling = "False"
+        }
+        worker_pool_variable = "Standards.Worker.Pool"
     }
 }
 
