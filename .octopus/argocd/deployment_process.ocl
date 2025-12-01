@@ -1,0 +1,73 @@
+step "azure-key-vault-retrieve-secrets" {
+    name = "Azure Key Vault - Retrieve Secrets"
+
+    action {
+        properties = {
+            Azure.KeyVault.RetrieveSecrets.Account = "Azure.Account"
+            Azure.KeyVault.RetrieveSecrets.PrintVariableNames = "False"
+            Azure.KeyVault.RetrieveSecrets.VaultName = "#{KeyVault.Azure.Name}"
+            Azure.KeyVault.RetrieveSecrets.VaultSecrets = "#{KeyVault.Azure.Secrets.List}"
+            Octopus.Action.Template.Id = "ActionTemplates-561"
+            Octopus.Action.Template.Version = "2"
+        }
+        worker_pool_variable = "Standards.Worker.Pool"
+
+        container {
+            feed = "dockerhub"
+            image = "#{Azure.ExecutionContainer.Name}"
+        }
+    }
+}
+
+step "deploy-kubernetes-yaml" {
+    name = "Deploy Kubernetes YAML"
+    properties = {
+        Octopus.Action.TargetRoles = "argocd-managed"
+    }
+
+    action {
+        action_type = "Octopus.KubernetesDeployRawYaml"
+        properties = {
+            Octopus.Action.Kubernetes.DeploymentTimeout = "180"
+            Octopus.Action.Kubernetes.ResourceStatusCheck = "True"
+            Octopus.Action.Kubernetes.ServerSideApply.Enabled = "True"
+            Octopus.Action.Kubernetes.ServerSideApply.ForceConflicts = "True"
+            Octopus.Action.KubernetesContainers.CustomResourceYamlFileName = "manifests/install.yaml"
+            Octopus.Action.KubernetesContainers.Namespace = "argocd"
+            Octopus.Action.Package.DownloadOnTentacle = "False"
+            Octopus.Action.Package.FeedId = "gh-repo"
+            Octopus.Action.Package.JsonConfigurationVariablesTargets = "**/*.{yml,yaml}"
+            Octopus.Action.Package.PackageId = "argoproj/argo-cd"
+            Octopus.Action.Script.ScriptSource = "Package"
+        }
+        worker_pool_variable = "Standards.Worker.Pool"
+
+        packages {
+            acquisition_location = "Server"
+            feed = "gh-repo"
+            package_id = "argoproj/argo-cd"
+            properties = {
+                SelectionMode = "immediate"
+            }
+        }
+    }
+}
+
+step "slack-send-simple-notification" {
+    name = "Slack - Send Simple Notification"
+
+    action {
+        properties = {
+            Octopus.Action.Template.Id = "ActionTemplates-101"
+            Octopus.Action.Template.Version = "15"
+            ssn_Channel = "trident-status"
+            ssn_Color = "good"
+            ssn_HookUrl = "#{Notification.Slack.Webhook.Url}"
+            ssn_IconUrl = "https://octopus.com/content/resources/favicon.png"
+            ssn_Message = "#{Notification.Body.Text}"
+            ssn_Title = "#{Notification.DeploymentStatus.Subject.Text}"
+            ssn_Username = "Octopus Deploy"
+        }
+        worker_pool_variable = "Standards.Worker.Pool"
+    }
+}
