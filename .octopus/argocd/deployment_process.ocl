@@ -64,7 +64,6 @@ step "deploy-kubernetes-yaml" {
             Octopus.Action.KubernetesContainers.Namespace = "argocd"
             Octopus.Action.Package.DownloadOnTentacle = "False"
             Octopus.Action.Package.FeedId = "gh-repo"
-            Octopus.Action.Package.JsonConfigurationVariablesTargets = "**/*.{yml,yaml}"
             Octopus.Action.Package.PackageId = "argoproj/argo-cd"
             Octopus.Action.Script.ScriptSource = "Package"
         }
