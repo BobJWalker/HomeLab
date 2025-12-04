@@ -56,11 +56,17 @@ step "deploy-argo-helm" {
     action {
         action_type = "Octopus.HelmChartUpgrade"
         properties = {
-            Octopus.Action.Helm.AdditionalArgs = "--set configs.params.server\\\\.insecure=true"
             Octopus.Action.Helm.Namespace = "argocd"
             Octopus.Action.Helm.ReleaseName = "argocd"
             Octopus.Action.Helm.ResetValues = "True"
-            Octopus.Action.Helm.TemplateValuesSources = "[]"
+            Octopus.Action.Helm.TemplateValuesSources = <<-EOT
+                [
+                  {
+                    "Type": "InlineYaml",
+                    "Value": "server:\n  # Enable insecure mode (serve HTTP instead of HTTPS)\n  insecure: true\n\n  # Optional: disable TLS on the server service (keeps it simple for local clusters)\n  service:\n    ports:\n      https: 80\n    type: ClusterIP\n\nconfigs:\n  # (Optional) Argo CD config settings\n  cm:\n    # Allow plain HTTP callback URLs, often needed when insecure mode is used\n    server.insecure: \"true\""
+                  }
+                ]
+                EOT
             Octopus.Action.Kubernetes.ResourceStatusCheck = "True"
             Octopus.Action.Package.DownloadOnTentacle = "False"
             Octopus.Action.Package.FeedId = "github-argo-oci"
