@@ -63,7 +63,7 @@ step "deploy-argo-helm" {
                 [
                   {
                     "Type": "InlineYaml",
-                    "Value": "server:\n  # Enable insecure mode (serve HTTP instead of HTTPS)\n  insecure: true\n\n  # Optional: disable TLS on the server service (keeps it simple for local clusters)\n  service:\n    https:\n      enabled: false\n    ports:\n      https: 80\n    type: ClusterIP     \n\nconfigs:\n  # (Optional) Argo CD config settings\n  cm:\n    # Allow plain HTTP callback URLs, often needed when insecure mode is used\n    server.insecure: \"true\""
+                    "Value": "server:\n  # Enable insecure mode (serve HTTP instead of HTTPS)\n  insecure: true\n  extraArgs:\n    - --disable-hsts\n\n  # Optional: disable TLS on the server service (keeps it simple for local clusters)\n  service:\n    https:\n      enabled: false\n    ports:\n      https: 80\n    type: ClusterIP     \n\nconfigs:\n  # (Optional) Argo CD config settings\n  cm:\n    # Allow plain HTTP callback URLs, often needed when insecure mode is used\n    server.insecure: \"true\""
                   }
                 ]
                 EOT
