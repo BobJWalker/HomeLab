@@ -59,6 +59,16 @@ step "deploy-argo-helm" {
             Octopus.Action.Helm.Namespace = "argocd"
             Octopus.Action.Helm.ReleaseName = "argocd"
             Octopus.Action.Helm.ResetValues = "True"
+            Octopus.Action.Helm.TemplateValuesSources = <<-EOT
+                [
+                  {
+                    "Type": "KeyValues",
+                    "Value": {
+                      "server.insecure": "true"
+                    }
+                  }
+                ]
+                EOT
             Octopus.Action.Kubernetes.ResourceStatusCheck = "True"
             Octopus.Action.Package.DownloadOnTentacle = "False"
             Octopus.Action.Package.FeedId = "github-argo-oci"
@@ -73,6 +83,7 @@ step "deploy-argo-helm" {
             package_id = "argo-helm/argo-cd"
             properties = {
                 SelectionMode = "immediate"
+                ValuesFilePath = ""
             }
         }
     }
