@@ -218,7 +218,7 @@ step "configure-argocd-gateway" {
                   rules:
                     - backendRefs:
                         - name: argocd-server
-                          port: 8080
+                          port: 80
                 EOT
             Octopus.Action.Script.ScriptSource = "Inline"
         }
