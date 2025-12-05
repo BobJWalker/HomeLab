@@ -69,7 +69,7 @@ step "deploy-traefik" {
                 EOT
             Octopus.Action.Kubernetes.ResourceStatusCheck = "True"
             Octopus.Action.Package.DownloadOnTentacle = "False"
-            Octopus.Action.Package.FeedId = "traefik-oci"
+            Octopus.Action.Package.FeedId = "traefik-helm-feed"
             Octopus.Action.Package.PackageId = "traefik"
             Octopus.Action.Script.ScriptSource = "Package"
         }
@@ -78,7 +78,7 @@ step "deploy-traefik" {
 
         packages {
             acquisition_location = "Server"
-            feed = "traefik-oci"
+            feed = "traefik-helm-feed"
             package_id = "traefik"
             properties = {
                 SelectionMode = "immediate"
