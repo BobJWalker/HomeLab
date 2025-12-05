@@ -189,7 +189,7 @@ step "configure-argocd" {
                   -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value":"--insecure"}]'
                 EOT
             Octopus.Action.Script.ScriptSource = "Inline"
-            Octopus.Action.Script.Syntax = "PowerShell"
+            Octopus.Action.Script.Syntax = "Bash"
         }
         worker_pool = "homelab-k8s"
         worker_pool_variable = ""
