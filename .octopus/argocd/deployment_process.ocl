@@ -151,14 +151,7 @@ step "deploy-argo-helm" {
             Octopus.Action.Helm.Namespace = "argocd"
             Octopus.Action.Helm.ReleaseName = "argocd"
             Octopus.Action.Helm.ResetValues = "True"
-            Octopus.Action.Helm.TemplateValuesSources = <<-EOT
-                [
-                  {
-                    "Type": "InlineYaml",
-                    "Value": "server:\n  # Serve both HTTP and HTTPS\n  insecure: true   # allows HTTP\n  service:\n    type: ClusterIP\n    http:\n      enabled: true\n      port: 80        # HTTP port\n    https:\n      enabled: true\n      port: 443       # HTTPS port\n      # optional: reference a TLS secret if you have one\n      # secretName: argocd-tls\n\nconfigs:\n  cm:\n    # ArgoCD server can serve HTTP\n    server.insecure: \"true\"\n\nrepoServer:\n  service:\n    type: ClusterIP\n\ncontroller:\n  service:\n    type: ClusterIP"
-                  }
-                ]
-                EOT
+            Octopus.Action.Helm.TemplateValuesSources = "[]"
             Octopus.Action.Kubernetes.ResourceStatusCheck = "True"
             Octopus.Action.Package.DownloadOnTentacle = "False"
             Octopus.Action.Package.FeedId = "github-argo-oci"
