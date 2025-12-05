@@ -119,7 +119,7 @@ step "configure-traefik-gateway" {
                   listeners:
                   - name: http
                     protocol: HTTP
-                    port: web
+                    port: 8080
                     hostname: "*.bobjwalker.local"   # Wildcard allowed
                     allowedRoutes:
                       namespaces:
