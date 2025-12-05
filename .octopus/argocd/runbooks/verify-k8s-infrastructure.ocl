@@ -30,12 +30,26 @@ process {
     }
 
     process_template "create-kubernetes-namespace" {
-        name = "Create Kubernetes Namespace"
+        name = "Create ArgoCD Namespace"
         process_template_slug = "create-container-infrastructure"
         version_mask = "1.X"
 
         parameter "Template.Kubernetes.Namespace.Name" {
             value = "argocd"
+        }
+
+        parameter "Template.Kubernetes.TargetTags" {
+            value = "argocd-managed"
+        }
+    }
+
+    process_template "create-traefik-namespace" {
+        name = "Create Traefik Namespace"
+        process_template_slug = "create-container-infrastructure"
+        version_mask = "1.X"
+
+        parameter "Template.Kubernetes.Namespace.Name" {
+            value = "traefik"
         }
 
         parameter "Template.Kubernetes.TargetTags" {
