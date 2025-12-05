@@ -63,7 +63,7 @@ step "deploy-traefik" {
                 [
                   {
                     "Type": "InlineYaml",
-                    "Value": "entryPoints:\n  web:\n    address: \":8000\"\n  websecure:\n    address: \":8443\"\n  traefik:\n    address: \":8080\"\n  metrics:\n    address: \":9100\"\n\nproviders:\n  kubernetesGateway:\n    enabled: true\n\nports:\n  web:\n    port: 80          # External port\n    targetPort: 8000  # Maps to Traefik container entryPoint    \n    protocol: TCP\n  websecure:\n    port: 443\n    targetPort: 8443    \n    protocol: TCP\n\ndashboard:\n  enabled: true\n\nservice:\n  type: LoadBalancer\n  externalTrafficPolicy: Cluster\n\nadditionalArguments:\n  - \"--log.level=INFO\""
+                    "Value": "ports:\n  web:\n    port: 80          # External port (Service)\n    targetPort: 80    # Traefik container port\n    protocol: TCP\n  websecure:\n    port: 443\n    targetPort: 443\n    protocol: TCP\n  traefik:\n    port: 8080\n    targetPort: 8080\n    protocol: TCP\n  metrics:\n    port: 9100\n    targetPort: 9100\n    protocol: TCP\n\nentryPoints:\n  web:\n    address: \":80\"\n  websecure:\n    address: \":443\"\n  traefik:\n    address: \":8080\"\n  metrics:\n    address: \":9100\"\n\nproviders:\n  kubernetesGateway:\n    enabled: true\n\ndashboard:\n  enabled: true\n\nservice:\n  type: LoadBalancer\n  externalTrafficPolicy: Cluster\n\nadditionalArguments:\n  - \"--log.level=INFO\""
                   }
                 ]
                 EOT
