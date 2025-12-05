@@ -63,7 +63,7 @@ step "deploy-traefik" {
                 [
                   {
                     "Type": "InlineYaml",
-                    "Value": "entryPoints:\n  web:\n    address: \":80\"       # Traefik container listens on 8080\n  websecure:\n    address: \":443\"\n\nproviders:\n  kubernetesGateway:\n    enabled: true\n\nservice:\n  type: LoadBalancer\n  ports:\n    web:\n      port: 80             # External port exposed by the Service\n      targetPort: 8080     # Internal Traefik container port\n    websecure:\n      port: 443\n      targetPort: 443\n\ndashboard:\n  enabled: true\n\nadditionalArguments:\n  - \"--log.level=INFO\""
+                    "Value": "entryPoints:\n  web:\n    address: \":8000\"\n  websecure:\n    address: \":8443\"\n  traefik:\n    address: \":8080\"\n  metrics:\n    address: \":9100\"\n\nproviders:\n  kubernetesGateway:\n    enabled: true\n\nports:\n  web:\n    port: 80          # External port\n    targetPort: 8000  # Maps to Traefik container entryPoint\n    expose: true\n    protocol: TCP\n  websecure:\n    port: 443\n    targetPort: 8443\n    expose: true\n    protocol: TCP\n\ndashboard:\n  enabled: true\n\nservice:\n  type: LoadBalancer\n  externalTrafficPolicy: Cluster\n\nadditionalArguments:\n  - \"--log.level=INFO\""
                   }
                 ]
                 EOT
