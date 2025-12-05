@@ -139,36 +139,75 @@ step "configure-traefik-gateway" {
     }
 }
 
-step "deploy-argo-helm" {
-    name = "Deploy Argo Helm"
+step "deploy-argo" {
+    name = "Deploy Argo"
     properties = {
         Octopus.Action.TargetRoles = "argocd-managed"
     }
 
     action {
-        action_type = "Octopus.HelmChartUpgrade"
+        action_type = "Octopus.KubernetesDeployRawYaml"
         properties = {
-            Octopus.Action.Helm.Namespace = "argocd"
-            Octopus.Action.Helm.ReleaseName = "argocd"
-            Octopus.Action.Helm.ResetValues = "True"
-            Octopus.Action.Helm.TemplateValuesSources = "[]"
+            Octopus.Action.Kubernetes.DeploymentTimeout = "180"
             Octopus.Action.Kubernetes.ResourceStatusCheck = "True"
+            Octopus.Action.Kubernetes.ServerSideApply.Enabled = "True"
+            Octopus.Action.Kubernetes.ServerSideApply.ForceConflicts = "True"
+            Octopus.Action.KubernetesContainers.CustomResourceYamlFileName = "manifests/install.yaml"
+            Octopus.Action.KubernetesContainers.Namespace = "argocd"
             Octopus.Action.Package.DownloadOnTentacle = "False"
-            Octopus.Action.Package.FeedId = "github-argo-oci"
-            Octopus.Action.Package.PackageId = "argo-helm/argo-cd"
+            Octopus.Action.Package.FeedId = "gh-repo"
+            Octopus.Action.Package.PackageId = "argoproj/argo-cd"
             Octopus.Action.Script.ScriptSource = "Package"
         }
-        worker_pool_variable = "Standards.Worker.Pool"
+        worker_pool = "homelab-k8s"
+        worker_pool_variable = ""
 
         packages {
             acquisition_location = "Server"
-            feed = "github-argo-oci"
-            package_id = "argo-helm/argo-cd"
+            feed = "gh-repo"
+            package_id = "argoproj/argo-cd"
             properties = {
                 SelectionMode = "immediate"
-                ValuesFilePath = ""
             }
         }
+    }
+}
+
+step "configure-argo" {
+    name = "Configure Argo"
+    properties = {
+        Octopus.Action.TargetRoles = "argocd-managed"
+    }
+
+    action {
+        action_type = "Octopus.KubernetesDeployRawYaml"
+        properties = {
+            Octopus.Action.Kubernetes.DeploymentTimeout = "180"
+            Octopus.Action.Kubernetes.ResourceStatusCheck = "True"
+            Octopus.Action.Kubernetes.ServerSideApply.Enabled = "True"
+            Octopus.Action.Kubernetes.ServerSideApply.ForceConflicts = "True"
+            Octopus.Action.KubernetesContainers.CustomResourceYaml = <<-EOT
+                apiVersion: apps/v1
+                kind: Deployment
+                metadata:
+                  name: argocd-server
+                  namespace: argocd
+                spec:
+                  template:
+                    spec:
+                      containers:
+                      - name: argocd-server
+                        args:
+                        - /usr/local/bin/argocd-server
+                        - --insecure
+                        - --staticassets
+                        - /shared/app
+                EOT
+            Octopus.Action.KubernetesContainers.Namespace = "argocd"
+            Octopus.Action.Script.ScriptSource = "Inline"
+        }
+        worker_pool = "homelab-k8s"
+        worker_pool_variable = ""
     }
 }
 
@@ -208,15 +247,6 @@ step "configure-argocd-gateway" {
                         - kind: Service
                           name: argocd-server
                           port: 80   # HTTP
-                          weight: 1
-                    - matches:
-                        - path:
-                            type: PathPrefix
-                            value: /
-                      backendRefs:
-                        - kind: Service
-                          name: argocd-server
-                          port: 443  # HTTPS
                           weight: 1
                 EOT
             Octopus.Action.Script.ScriptSource = "Inline"
