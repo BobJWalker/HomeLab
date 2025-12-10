@@ -63,7 +63,7 @@ step "deploy-traefik" {
                 [
                   {
                     "Type": "InlineYaml",
-                    "Value": "ports:\n  web:\n    port: 80        # Service port\n    targetPort: 80  # Container port matches entryPoint\n    protocol: TCP\n  websecure:\n    port: 443\n    targetPort: 443\n    protocol: TCP\n  traefik:\n    port: 8000\n    targetPort: 8000\n    protocol: TCP\n  metrics:\n    port: 9100\n    targetPort: 9100\n    protocol: TCP\n\nentryPoints:\n  web:\n    address: \":80\"       # Must match ports.web.targetPort\n  websecure:\n    address: \":443\"      # Must match ports.websecure.targetPort\n  traefik:\n    address: \":8000\"\n  metrics:\n    address: \":9100\"\n\nproviders:\n  kubernetesGateway:\n    enabled: true\n\ndashboard:\n  enabled: true\n\nservice:\n  type: LoadBalancer\n  externalTrafficPolicy: Cluster\n\nadditionalArguments:\n  - \"--log.level=INFO\""
+                    "Value": "ports:\n  web:\n    port: #{Project.Web.EntryPort}        # Service port\n    targetPort: #{Project.Web.EntryPort}  # Container port matches entryPoint\n    protocol: TCP\n  websecure:\n    port: #{Project.SSL.EntryPort}\n    targetPort: #{Project.SSL.EntryPort}\n    protocol: TCP\n  traefik:\n    port: 8000\n    targetPort: 8000\n    protocol: TCP\n  metrics:\n    port: 9100\n    targetPort: 9100\n    protocol: TCP\n\nentryPoints:\n  web:\n    address: \":#{Project.Web.EntryPort}\"       # Must match ports.web.targetPort\n  websecure:\n    address: \":#{Project.SSL.EntryPort}\"      # Must match ports.websecure.targetPort\n  traefik:\n    address: \":8000\"\n  metrics:\n    address: \":9100\"\n\nproviders:\n  kubernetesGateway:\n    enabled: true\n\ndashboard:\n  enabled: true\n\nservice:\n  type: LoadBalancer\n  externalTrafficPolicy: Cluster\n\nadditionalArguments:\n  - \"--log.level=INFO\""
                   }
                 ]
                 EOT
@@ -119,14 +119,14 @@ step "configure-traefik-gateway" {
                   listeners:
                     - name: http
                       protocol: HTTP
-                      port: 80
+                      port: #{Project.Web.EntryPort}
                       hostname: '*.bobjwalker.local'
                       allowedRoutes:
                         namespaces:
                           from: All
                     - name: https
                       protocol: HTTPS
-                      port: 443
+                      port: #{Project.SSL.EntryPort}
                       hostname: '*.bobjwalker.local'
                       allowedRoutes:
                         namespaces:
