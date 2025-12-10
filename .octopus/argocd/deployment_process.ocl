@@ -231,7 +231,7 @@ step "configure-argocd-gateway" {
                       backendRefs:
                         - kind: Service
                           name: argocd-server
-                          port: 80   # HTTP
+                          port: #{Project.Web.EntryPort}   # HTTP
                           weight: 1
                 EOT
             Octopus.Action.Script.ScriptSource = "Inline"
