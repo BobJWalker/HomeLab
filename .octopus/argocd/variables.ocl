@@ -1,0 +1,19 @@
+variable "Project.SSL.EntryPort" {
+    value "443" {
+        environment = ["test"]
+    }
+
+    value "8444" {
+        environment = ["production"]
+    }
+}
+
+variable "Project.Web.EntryPort" {
+    value "80" {
+        environment = ["test"]
+    }
+
+    value "8080" {
+        environment = ["production"]
+    }
+}
