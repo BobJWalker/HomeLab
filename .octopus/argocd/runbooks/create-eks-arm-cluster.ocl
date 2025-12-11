@@ -11,4 +11,316 @@ run_retention_policy {
     type = "Default"
 }
 
-process {}
+process {
+    step "azure-key-vault-retrieve-secrets" {
+        name = "Azure Key Vault - Retrieve Secrets"
+
+        action {
+            properties = {
+                Azure.KeyVault.RetrieveSecrets.Account = "Azure.Account"
+                Azure.KeyVault.RetrieveSecrets.PrintVariableNames = "False"
+                Azure.KeyVault.RetrieveSecrets.VaultName = "#{KeyVault.Azure.Name}"
+                Azure.KeyVault.RetrieveSecrets.VaultSecrets = "#{KeyVault.Azure.Secrets.List}"
+                Octopus.Action.Template.Id = "ActionTemplates-561"
+                Octopus.Action.Template.Version = "2"
+            }
+            worker_pool = "homelab-k8s"
+            worker_pool_variable = ""
+
+            container {
+                feed = "dockerhub"
+                image = "#{Azure.ExecutionContainer.Name}"
+            }
+        }
+    }
+
+    step "get-aws-resource-ids" {
+        name = "Get AWS Resource Ids"
+
+        action {
+            action_type = "Octopus.AwsRunScript"
+            properties = {
+                Octopus.Action.Aws.AssumeRole = "False"
+                Octopus.Action.Aws.Region = "#{AWS.US.Primary.Region}"
+                Octopus.Action.AwsAccount.UseInstanceRole = "False"
+                Octopus.Action.AwsAccount.Variable = "AWS.Account"
+                Octopus.Action.Script.ScriptBody = <<-EOT
+                    # Get the VPC
+                    $demoVPCName = $OctopusParameters["AWS.VPC.Name"]
+                    $awsVpc = (aws ec2 describe-vpcs --filter Name=tag:Name,Values="$demoVPCName" --output json | ConvertFrom-Json)
+                    
+                    # Set output variable for Vpc id
+                    Write-Host "Setting output variable VpcId with value $($awsVpc.Vpcs[0].VpcId)"
+                    Set-OctopusVariable -name "VpcId" -value $awsVpc.Vpcs[0].VpcId
+                    
+                    # Get Security Group Id
+                    $demoSecurityGroupName = $OctopusParameters["AWS.SecurityGroup.Name"]
+                    $awsSecurityGroup = (aws ec2 describe-security-groups --filter Name=tag:Name,Values="$demoSecurityGroupName" --output json | ConvertFrom-Json)
+                    
+                    # Set output variable for security group id
+                    Write-Host "Setting output variable SecurityGroupId with value $($awsSecurityGroup.SecurityGroups[0].GroupId)"
+                    Set-OctopusVariable -Name "SecurityGroupId" -value $awsSecurityGroup.SecurityGroups[0].GroupId
+                    
+                    # Get Subnets
+                    $awsSubnets = (aws ec2 describe-subnets --filter Name=vpc-id,Values="$($awsVpc.Vpcs[0].VpcId)" Name=tag:Name,Values="bobjwalker-demo-subnet-*" --output json | ConvertFrom-Json)
+                    
+                    # Loop through results and record subnet ids
+                    $subnetIds = @()
+                    foreach ($subnet in $awsSubnets.Subnets)
+                    {
+                    	# Add subnet id to array
+                        $subnetIds += $subnet.SubnetId
+                    }
+                    
+                    # Set the subnet id output variable
+                    Write-Host "Setting output variable SubnetIds with value $("$($subnetIds | Join-String -DoubleQuote -Separator ',')")"
+                    Set-OctopusVariable -Name "SubnetIds" -value "$($subnetIds | Join-String -DoubleQuote -Separator ',')"
+                    
+                    # Get the Internet Gateway
+                    $demoGatewayName = $OctopusParameters["AWS.InternetGateway.Name"]
+                    $awsInternetGateway = (aws ec2 describe-internet-gateways --filter Name="$demoGatewayName",Values="$($awsVpc.Vpcs[0].VpcId)" --output json | ConvertFrom-Json)
+                    
+                    # Set the internet gateway output variable
+                    Write-Host "Setting output variable InternetGatewayId with value $($awsInternetGateway.InternetGateways[0].InternetGatewayId)"
+                    Set-OctopusVariable -Name "InternetGatewayId" -value $awsInternetGateway.InternetGateways[0].InternetGatewayId
+                    EOT
+                Octopus.Action.Script.ScriptSource = "Inline"
+                Octopus.Action.Script.Syntax = "PowerShell"
+                OctopusUseBundledTooling = "False"
+            }
+            worker_pool = "homelab-k8s"
+            worker_pool_variable = ""
+
+            container {
+                feed = "dockerhub"
+                image = "#{AWS.ExecutionContainer.Name}"
+            }
+        }
+    }
+
+    step "create-development-eks-cluster" {
+        name = "Create Development EKS Cluster"
+
+        action {
+            action_type = "Octopus.AwsRunScript"
+            properties = {
+                Octopus.Action.Aws.AssumeRole = "False"
+                Octopus.Action.Aws.Region = "#{AWS.US.Primary.Region}"
+                Octopus.Action.AwsAccount.UseInstanceRole = "False"
+                Octopus.Action.AwsAccount.Variable = "AWS.Account"
+                Octopus.Action.Script.ScriptBody = <<-EOT
+                    # Get variables
+                    $clusterName = "$($OctopusParameters['AWS.EKS.Cluster.Name'])"
+                    $nodegroupName = "$clusterName-nodes"
+                    $region = $OctopusParameters['AWS.US.Primary.Region']
+                    $eksRoleArn = $OctopusParameters['AWS.EKS.IAM.Role.Arn']
+                    $nodeRoleArn = $OctopusParameters['AWS.EKS.IAM.Role.Arn']
+                    $subnets = $OctopusParameters['Project.AWS.Subnets'].Split(",")
+                    $subnet1Id = $subnets[0]
+                    $subnet2Id = $subnets[1]
+                    $securityGroupId = $OctopusParameters['Project.AWS.SecurityGroup.Id']
+                    
+                    
+                    
+                    # Create EKS cluster
+                    $eksCluster = aws eks create-cluster --name $clusterName --role-arn $eksRoleArn --resources-vpc-config subnetIds=$subnet1Id,$subnet2Id,securityGroupIds=$securityGroupId --tags octopus-environment=Production,octopus-role=argocd-managed
+                    $eksCluster = $eksCluster | ConvertFrom-JSON
+                    
+                    Write-Host "Waiting for cluster to be done creating..."
+                    while ($eksCluster.Cluster.Status -eq "CREATING")
+                    {
+                    	# Wait for cluster to be done creating
+                    	$eksCluster = aws eks describe-cluster --name $clusterName
+                    	$eksCluster = $eksCluster | ConvertFrom-JSON
+                    }
+                    
+                    
+                    Write-Host "Status of cluster: $($eksCluster.Cluster.Status)" 
+                    
+                    Write-Host "Creating node group..."
+                    $eksNodeGroup = aws eks create-nodegroup --cluster-name $clusterName --nodegroup-name $nodegroupName --subnets $subnet1Id $subnet2Id --instance-types "c8g.large" --node-role $nodeRoleArn --remote-access ec2SshKey="demo-keypair" --scaling-config minSize=1,maxSize=3,desiredSize=1
+                    $eksNodeGroup = $eksNodeGroup | ConvertFrom-JSON
+                    Write-Host "Waiting for node group to be done creating ..."
+                    
+                    while ($eksNodeGroup.nodegroup.status -eq "CREATING")
+                    {
+                    	$eksNodeGroup = aws eks describe-nodegroup --cluster-name $clusterName --nodegroup-name $nodegroupName
+                        $eksNodeGroup = $eksNodeGroup | ConvertFrom-JSON
+                    }
+                    
+                    Write-Host "Status of cluster: $($eksNodeGroup.nodegroup.Status)" 
+                    
+                    Set-OctopusVariable -name "EKSURL" -value $eksCluster.Cluster.Endpoint
+                    EOT
+                Octopus.Action.Script.ScriptSource = "Inline"
+                Octopus.Action.Script.Syntax = "PowerShell"
+                OctopusUseBundledTooling = "False"
+            }
+            worker_pool = "homelab-k8s"
+            worker_pool_variable = ""
+
+            container {
+                feed = "dockerhub"
+                image = "#{AWS.ExecutionContainer.Name}"
+            }
+        }
+    }
+
+    step "add-octopus-users" {
+        name = "Add Octopus Users"
+
+        action {
+            action_type = "Octopus.AwsRunScript"
+            properties = {
+                Octopus.Action.Aws.AssumeRole = "False"
+                Octopus.Action.Aws.Region = "#{AWS.US.Primary.Region}"
+                Octopus.Action.AwsAccount.UseInstanceRole = "False"
+                Octopus.Action.AwsAccount.Variable = "AWS.Account"
+                Octopus.Action.Script.ScriptBody = <<-EOT
+                    # Get the variables
+                    $clusterName = $OctopusParameters["AWS.EKS.Cluster.Name"]
+                    $region = $OctopusParameters["AWS.US.Primary.Region"]
+                    
+                    # Get context credentials
+                    $env:KUBECONFIG = "$PWD/config"
+                    aws eks update-kubeconfig --region $region --name $clusterName
+                    
+                    # Retrieve list of configmaps
+                    $configMaps = (kubectl get configmaps --namespace kube-system -o json | ConvertFrom-Json)
+                    $retries = 3
+                    
+                    # Wait until aws-auth is created
+                    while ($null -eq ($configMaps.items | Where-Object {$_.metadata.name -eq "aws-auth"}) -and $retries -gt 0)
+                    {
+                    	Write-Host "Waiting 5 seconds for config map aws-auth to be created ..."
+                        
+                    	# decrement retries
+                        $retries = $retries - 1
+                        
+                        # Wait 5 seconds
+                        Start-Sleep -Seconds 5
+                        
+                        # Get configmaps
+                        $configMaps = (kubectl get configmaps --namespace kube-system -o json | ConvertFrom-Json)
+                    }
+                    
+                    
+                    
+                    # Wait 10 seconds to make sure everything is done
+                    #Start-Sleep -Seconds 10
+                    
+                    # Get current aws-auth configmap
+                    kubectl get configmap/aws-auth -n kube-system -o json | Set-Content aws-auth.json
+                    
+                    # Load the JSON as an object
+                    $jsonPayload = (Get-Content aws-auth.json | Out-String | ConvertFrom-Json)
+                    
+                    # Create federated users rolearn piece
+                    $federatedUsers = 
+                    @"
+                    `n
+                    - rolearn: arn:aws:iam::623990049154:role/AWSReservedSSO_DeveloperAccess_8abc33db24e5dfdd
+                      username: "{{SessionName}}"
+                      groups:
+                        - system:masters
+                    - groups:
+                        - system:bootstrappers 
+                        - system:nodes
+                      username: system:node:{{EC2PrivateDNSName}} 
+                      rolearn: arn:aws:iam::623990049154:role/demo-worker
+                    "@
+                    
+                    # Add federated users to maproles
+                    $jsonPayload.data.mapRoles = $federatedUsers
+                    
+                    # Write the new information to file
+                    Set-Content aws-auth.json -Value ($jsonPayload | ConvertTo-Json -depth 10)
+                    
+                    # Replace the config map
+                    kubectl replace -n kube-system -f aws-auth.json
+                    EOT
+                Octopus.Action.Script.ScriptSource = "Inline"
+                Octopus.Action.Script.Syntax = "PowerShell"
+                OctopusUseBundledTooling = "False"
+            }
+            worker_pool = "homelab-k8s"
+            worker_pool_variable = ""
+
+            container {
+                feed = "dockerhub"
+                image = "#{AWS.ExecutionContainer.Name}"
+            }
+        }
+    }
+
+    step "register-eks-k8s-agent-target" {
+        name = "Register EKS K8s Agent Target"
+
+        action {
+            action_type = "Octopus.AwsRunScript"
+            properties = {
+                Octopus.Action.Aws.AssumeRole = "False"
+                Octopus.Action.Aws.Region = "#{AWS.US.Primary.Region}"
+                Octopus.Action.AwsAccount.UseInstanceRole = "False"
+                Octopus.Action.AwsAccount.Variable = "AWS.Account"
+                Octopus.Action.Script.ScriptBody = <<-EOT
+                    # Get the variables
+                    $clusterName = $OctopusParameters["AWS.EKS.Cluster.Name"]
+                    $region = $OctopusParameters["AWS.US.Primary.Region"]
+                    $instanceName = "bobjwalker.octopus.app"
+                    $apiKey = $OctopusParameters["KeyVault.Octopus.Api.Key"]
+                    
+                    # Get context credentials
+                    $env:KUBECONFIG = "$PWD/config"
+                    aws eks update-kubeconfig --region $region --name $clusterName
+                    
+                    # Get access token
+                    $header = @{ "X-Octopus-ApiKey" = $apiKey }
+                    $response = Invoke-RestMethod -Method Post -Uri "https://$($instanceName)/api/users/access-token" -Headers $header 
+                    
+                    $accessToken = $response.AccessToken
+                    
+                    # Install NFS storage class
+                    helm upgrade --install --atomic `
+                    --repo https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/master/charts `
+                    --namespace kube-system `
+                    --version v4.6.0 `
+                    csi-driver-nfs `
+                    csi-driver-nfs
+                    
+                    # Install K8s agent
+                    helm upgrade --install --atomic `
+                    --set agent.acceptEula="Y" `
+                    --set agent.serverUrl="https://bobjwalker.octopus.app/" `
+                    --set agent.serverCommsAddresses="{https://polling.bobjwalker.octopus.app/}" `
+                    --set agent.space="#{Octopus.Space.Name}" `
+                    --set agent.name="$($clusterName)-eks" `
+                    --set agent.deploymentTarget.initial.environments="{production}" `
+                    --set agent.deploymentTarget.initial.tags="{EKS}" `
+                    --set agent.deploymentTarget.enabled="true" `
+                    --set agent.serverApiKey="$apiKey" `
+                    --set kubernetesMonitor.enabled="true" `
+                    --set kubernetesMonitor.registration.serverApiUrl="https://bobjwalker.octopus.app/" `
+                    --set kubernetesMonitor.monitor.serverGrpcUrl="grpc://bobjwalker.octopus.app:8443" `
+                    --set kubernetesMonitor.registration.serverAccessToken="$accessToken" `
+                    --set kubernetesMonitor.registration.spaceId="#{Octopus.Space.Id}" `
+                    --set kubernetesMonitor.registration.machineName="$($clusterName)-eks" `
+                    --version "2.*.*" `
+                    --create-namespace --namespace "octopus-agent" `
+                    $clusterName.ToLower() `
+                    oci://registry-1.docker.io/octopusdeploy/kubernetes-agent
+                    EOT
+                Octopus.Action.Script.ScriptSource = "Inline"
+                Octopus.Action.Script.Syntax = "PowerShell"
+                OctopusUseBundledTooling = "False"
+            }
+            worker_pool = "homelab-k8s"
+            worker_pool_variable = ""
+
+            container {
+                feed = "dockerhub"
+                image = "#{AWS.ExecutionContainer.Name}"
+            }
+        }
+    }
+}
