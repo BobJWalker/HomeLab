@@ -18,6 +18,7 @@ process {
 
         action {
             action_type = "Octopus.TerraformApply"
+            environments = ["production"]
             properties = {
                 Octopus.Action.Aws.Region = "#{AWS.US.Primary.Region}"
                 Octopus.Action.AwsAccount.UseInstanceRole = "False"
