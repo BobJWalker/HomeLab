@@ -76,14 +76,6 @@ process {
                     # Set the subnet id output variable
                     Write-Host "Setting output variable SubnetIds with value $("$($subnetIds | Join-String -DoubleQuote -Separator ',')")"
                     Set-OctopusVariable -Name "SubnetIds" -value "$($subnetIds | Join-String -DoubleQuote -Separator ',')"
-                    
-                    # Get the Internet Gateway
-                    $demoGatewayName = $OctopusParameters["AWS.InternetGateway.Name"]
-                    $awsInternetGateway = (aws ec2 describe-internet-gateways --filter Name="$demoGatewayName",Values="$($awsVpc.Vpcs[0].VpcId)" --output json | ConvertFrom-Json)
-                    
-                    # Set the internet gateway output variable
-                    Write-Host "Setting output variable InternetGatewayId with value $($awsInternetGateway.InternetGateways[0].InternetGatewayId)"
-                    Set-OctopusVariable -Name "InternetGatewayId" -value $awsInternetGateway.InternetGateways[0].InternetGatewayId
                     EOT
                 Octopus.Action.Script.ScriptSource = "Inline"
                 Octopus.Action.Script.Syntax = "PowerShell"
