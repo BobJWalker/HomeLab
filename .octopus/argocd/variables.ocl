@@ -17,3 +17,15 @@ variable "Project.Web.EntryPort" {
         environment = ["production"]
     }
 }
+
+variable "Project.AWS.Subnets" {
+    value "#{Octopus.Action[Get AWS Resource Ids].Output.SubnetIds}" {
+        process = ["runbook/create-eks-arm-cluster"]
+    }
+}
+
+variable "Project.AWS.SecurityGroup.Id" {
+    value "#{Octopus.Action[Get AWS Resource Ids].Output.SecurityGroupId}" {
+        process = ["runbook/create-eks-arm-cluster"]
+    }
+}
