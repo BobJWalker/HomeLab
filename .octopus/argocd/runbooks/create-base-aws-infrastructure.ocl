@@ -39,7 +39,11 @@ process {
                           version = "~> 4.16"
                         }
                       }
-                      backend "s3" { }
+                      backend "s3" {
+                        bucket = "bobjwalker-default-production-terraform-state"
+                        key = "Demo-Infrastructure/Production"
+                        region = "#{AWS.US.Primary.Region}"
+                      }
                     }
                     
                     # VPC for demo more comments
