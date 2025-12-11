@@ -11,4 +11,154 @@ run_retention_policy {
     type = "Default"
 }
 
-process {}
+process {
+    step "apply-a-terraform-template" {
+        name = "Apply a Terraform template"
+
+        action {
+            action_type = "Octopus.TerraformApply"
+            properties = {
+                Octopus.Action.Aws.Region = "#{AWS.US.Primary.Region}"
+                Octopus.Action.AwsAccount.UseInstanceRole = "False"
+                Octopus.Action.AwsAccount.Variable = "AWS.Account"
+                Octopus.Action.GoogleCloud.ImpersonateServiceAccount = "False"
+                Octopus.Action.GoogleCloud.UseVMServiceAccount = "True"
+                Octopus.Action.Script.ScriptSource = "Inline"
+                Octopus.Action.Terraform.AllowPluginDownloads = "True"
+                Octopus.Action.Terraform.AzureAccount = "False"
+                Octopus.Action.Terraform.GoogleCloudAccount = "False"
+                Octopus.Action.Terraform.ManagedAccount = "AWS"
+                Octopus.Action.Terraform.PlanJsonOutput = "False"
+                Octopus.Action.Terraform.RunAutomaticFileSubstitution = "True"
+                Octopus.Action.Terraform.Template = <<-EOT
+                    terraform {
+                      required_providers {
+                        aws = {
+                          source  = "hashicorp/aws"
+                          version = "~> 4.16"
+                        }
+                      }
+                      backend "s3" { }
+                    }
+                    
+                    # VPC for demo more comments
+                    resource "aws_vpc" "demo_vpc" {
+                      cidr_block       = var.vpc_cidr
+                      enable_dns_hostnames = true
+                      tags = {
+                        Name = "#{AWS.VPC.Name}"
+                      }
+                    }
+                    
+                    # Internet Gateway
+                    resource "aws_internet_gateway" "demo_igw" {
+                      vpc_id = aws_vpc.demo_vpc.id
+                      tags = {
+                        Name = "#{AWS.InternetGateway.Name}"
+                      }
+                    }
+                    
+                    # Subnets : public
+                    resource "aws_subnet" "demo-public-sb" {
+                      count = length(var.subnets_cidr)
+                      vpc_id = aws_vpc.demo_vpc.id
+                      cidr_block = element(var.subnets_cidr,count.index)
+                      availability_zone = element(var.azs,count.index)
+                      map_public_ip_on_launch = true
+                      tags = {
+                        Name = "#{AWS.Subnet.Name}-${count.index+1}"
+                      }
+                    }
+                    
+                    # Route table: attach Internet Gateway 
+                    resource "aws_route_table" "demo_rt" {
+                      vpc_id = aws_vpc.demo_vpc.id
+                      route {
+                        cidr_block = "0.0.0.0/0"
+                        gateway_id = aws_internet_gateway.demo_igw.id
+                      }
+                      tags = {
+                        Name = "#{AWS.RouteTable.Name}"
+                      }
+                    }
+                    
+                    # Route table association with public subnets
+                    resource "aws_route_table_association" "a" {
+                      count = length(var.subnets_cidr)
+                      subnet_id      = element(aws_subnet.demo-public-sb.*.id,count.index)
+                      route_table_id = aws_route_table.demo_rt.id
+                    }
+                    
+                    # Security groups
+                    resource "aws_security_group" "demo_security_group" {
+                      name        = "#{AWS.SecurityGroup.Name}"
+                      description = "Security group for demo resources."
+                      vpc_id      = aws_vpc.demo_vpc.id
+                    
+                      ingress {
+                        description      = "TLS from VPC"
+                        from_port        = 443
+                        to_port          = 443
+                        protocol         = "tcp"
+                        cidr_blocks      = ["0.0.0.0/0"]
+                      }
+                    
+                      ingress {
+                        description      = "Tentacle default ports"
+                        from_port        = 10933
+                        to_port          = 10933
+                        protocol         = "tcp"
+                    #    cidr_blocks      = [aws_vpc.demo_vpc.cidr_block]
+                        cidr_blocks      = ["0.0.0.0/0"]
+                      }
+                    
+                      ingress {
+                        description      = "Default HTTP port"
+                        from_port        = 80
+                        to_port          = 80
+                        protocol         = "tcp"
+                        cidr_blocks      = ["0.0.0.0/0"]
+                      }
+                      
+                      egress {
+                        from_port        = 0
+                        to_port          = 0
+                        protocol         = "-1"
+                        cidr_blocks      = ["0.0.0.0/0"]
+                        ipv6_cidr_blocks = ["::/0"]
+                      }
+                    
+                      tags = {
+                        Name = "#{AWS.SecurityGroup.Name}"
+                      }
+                    }
+                    
+                    # Variables
+                    variable "subnets_cidr" {
+                    	type = list
+                    	default = ["10.28.1.0/24", "10.28.2.0/24"]
+                    }
+                    
+                    variable "vpc_cidr" {
+                    	default = "10.28.0.0/16"
+                    }
+                    
+                    variable "azs" {
+                    	type = list
+                    	default = ["#{AWS.US.Primary.Region}a", "#{AWS.US.Primary.Region}b"]
+                    }
+                    
+                    EOT
+                Octopus.Action.Terraform.TemplateParameters = "{\"subnets_cidr\":\"[\\n  \\\"10.28.1.0/24\\\", \\n  \\\"10.28.2.0/24\\\"\\n]\",\"vpc_cidr\":\"10.28.0.0/16\",\"azs\":\"[\\n  \\\"#{AWS.US.Primary.Region}a\\\", \\n  \\\"#{AWS.US.Primary.Region}b\\\"\\n]\"}"
+                OctopusUseBundledTooling = "False"
+            }
+            worker_pool = "homelab-k8s"
+            worker_pool_variable = ""
+
+            container {
+                feed = "dockerhub"
+                image = "#{AWS.ExecutionContainer.Name}"
+            }
+        }
+    }
+}
