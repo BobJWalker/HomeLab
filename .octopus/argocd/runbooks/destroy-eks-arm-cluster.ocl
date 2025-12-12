@@ -11,4 +11,41 @@ run_retention_policy {
     type = "Default"
 }
 
-process {}
+process {
+    step "destroy-eks-cluster" {
+        name = "Destroy EKS Cluster"
+
+        action {
+            action_type = "Octopus.AwsRunScript"
+            properties = {
+                Octopus.Action.Aws.AssumeRole = "False"
+                Octopus.Action.Aws.Region = "#{AWS.US.Primary.Region}"
+                Octopus.Action.AwsAccount.UseInstanceRole = "False"
+                Octopus.Action.AwsAccount.Variable = "AWS.Account"
+                Octopus.Action.Script.ScriptBody = <<-EOT
+                    # Get variables
+                    $clusterName = $OctopusParameters["AWS.EKS.Cluster.Name"]
+                    $region = $OctopusParameters["AWS.US.Primary.Region"]
+                    
+                    # Delete the nodegroup
+                    # Write-Host "Deleting node group $clusterName-nodes ..."
+                    # aws eks delete-nodegroup --cluster-name $clusterName --nodegroup-name "$clusterName-nodes"
+                    # aws eks wait nodegroup-deleted --cluster-name $clusterName --nodegroup-name "$clusterName-nodes"
+                    
+                    # Delete cluster
+                    Write-Host "Deleting cluster $clusterName ..."
+                    aws eks delete-cluster --name $clusterName
+                    EOT
+                Octopus.Action.Script.ScriptSource = "Inline"
+                Octopus.Action.Script.Syntax = "PowerShell"
+                OctopusUseBundledTooling = "False"
+            }
+            worker_pool_variable = "Standards.Worker.Pool"
+
+            container {
+                feed = "dockerhub"
+                image = "#{AWS.ExecutionContainer.Name}"
+            }
+        }
+    }
+}
