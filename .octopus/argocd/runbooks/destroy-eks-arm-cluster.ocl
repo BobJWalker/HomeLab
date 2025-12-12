@@ -29,9 +29,9 @@ process {
                     $region = $OctopusParameters["AWS.US.Primary.Region"]
                     
                     # Delete the nodegroup
-                    # Write-Host "Deleting node group $clusterName-nodes ..."
-                    # aws eks delete-nodegroup --cluster-name $clusterName --nodegroup-name "$clusterName-nodes"
-                    # aws eks wait nodegroup-deleted --cluster-name $clusterName --nodegroup-name "$clusterName-nodes"
+                    Write-Host "Deleting node group $clusterName-nodes ..."
+                    aws eks delete-nodegroup --cluster-name $clusterName --nodegroup-name "$clusterName-nodes"
+                    aws eks wait nodegroup-deleted --cluster-name $clusterName --nodegroup-name "$clusterName-nodes"
                     
                     # Delete cluster
                     Write-Host "Deleting cluster $clusterName ..."
