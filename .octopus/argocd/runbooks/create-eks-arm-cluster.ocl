@@ -113,6 +113,19 @@ process {
                     $subnet2Id = $subnets[1]
                     $securityGroupId = $OctopusParameters['Project.AWS.SecurityGroup.Id']
                     
+                    $clusterExists = $false
+                    try {
+                      $eksCluster = aws eks describe-cluster --name $clusterName
+                      $eksCluster = $eksCluster | ConvertFrom-JSON
+                    
+                      $clusterExists = $true
+                      Write-Host "The cluster already exists, skipping the creation"
+                    }
+                    catch {
+                      Write-Host "The cluster does not exist, creating it"
+                    }
+                    
+                    if ($clusterExists -eq $false){
                       # Create EKS cluster
                       Write-Verbose "running aws eks create-cluster --name $clusterName --role-arn $eksRoleArn --resources-vpc-config subnetIds=$subnet1Id,$subnet2Id,securityGroupIds=$securityGroupId --tags octopus-environment=Production,octopus-role=argocd-managed"
                       $eksCluster = aws eks create-cluster --name $clusterName --role-arn $eksRoleArn --resources-vpc-config subnetIds=$subnet1Id,$subnet2Id,securityGroupIds=$securityGroupId --tags octopus-environment=Production,octopus-role=argocd-managed
@@ -125,27 +138,40 @@ process {
                         Write-Verbose "running aws eks describe-cluster --name $clusterName"
                     	$eksCluster = aws eks describe-cluster --name $clusterName
                     	$eksCluster = $eksCluster | ConvertFrom-JSON
-                      }
+                      }  
+                    }
                     
-                      Write-Host "Status of cluster: $($eksCluster.Cluster.Status)" 
+                    $nodeGroupExists = $false
+                    try {
+                      $eksNodeGroup = aws eks describe-nodegroup --cluster-name $clusterName --nodegroup-name $nodegroupName
+                      $eksNodeGroup = $eksNodeGroup | ConvertFrom-JSON
                     
-                    Write-Host "Creating node group..."
-                    Write-Verbose "running aws eks create-nodegroup --cluster-name $clusterName --nodegroup-name $nodegroupName --subnets $subnet1Id $subnet2Id --ami-type AL2023_ARM_64_STANDARD --instance-types c8g.large --node-role $nodeRoleArn --remote-access ec2SshKey=ShawnSesna-samples-debug --scaling-config minSize=1,maxSize=3,desiredSize=1"
-                    $eksNodeGroup = aws eks create-nodegroup --cluster-name $clusterName --nodegroup-name $nodegroupName --subnets $subnet1Id $subnet2Id --ami-type "AL2023_ARM_64_STANDARD" --instance-types "c8g.large" --node-role $nodeRoleArn --remote-access ec2SshKey="ShawnSesna-samples-debug" --scaling-config minSize=1,maxSize=3,desiredSize=1
+                      $nodeGroupExists = $true
+                      Write-Host "Node group already exists, skipping the creation"
+                    }
+                    catch {
+                      Write-Host "Node group does not exist, creating it"
+                    }
                     
-                    $eksNodeGroup = $eksNodeGroup | ConvertFrom-JSON
-                    
-                    Write-Host "Waiting for node group to be done creating ..."
-                    
-                    while ($eksNodeGroup.nodegroup.status -eq "CREATING")
+                    if ($nodeGroupExists -eq $true)
                     {
+                      Write-Host "Creating node group..."
+                      Write-Verbose "running aws eks create-nodegroup --cluster-name $clusterName --nodegroup-name $nodegroupName --subnets $subnet1Id $subnet2Id --ami-type AL2023_ARM_64_STANDARD --instance-types c8g.large --node-role $nodeRoleArn --remote-access ec2SshKey=ShawnSesna-samples-debug --scaling-config minSize=1,maxSize=3,desiredSize=1"
+                      
+                      $eksNodeGroup = aws eks create-nodegroup --cluster-name $clusterName --nodegroup-name $nodegroupName --subnets $subnet1Id $subnet2Id --ami-type "AL2023_ARM_64_STANDARD" --instance-types "c8g.large" --node-role $nodeRoleArn --remote-access ec2SshKey="ShawnSesna-samples-debug" --scaling-config minSize=1,maxSize=3,desiredSize=1
+                      $eksNodeGroup = $eksNodeGroup | ConvertFrom-JSON
+                    
+                      Write-Host "Waiting for node group to be done creating ..."
+                    
+                      while ($eksNodeGroup.nodegroup.status -eq "CREATING")
+                      {
                         Write-Verbose "running aws eks describe-nodegroup --cluster-name $clusterName --nodegroup-name $nodegroupName"
                     	$eksNodeGroup = aws eks describe-nodegroup --cluster-name $clusterName --nodegroup-name $nodegroupName
                         $eksNodeGroup = $eksNodeGroup | ConvertFrom-JSON
+                      }
                     }
                     
                     Write-Host "Status of cluster: $($eksNodeGroup.nodegroup.Status)" 
-                    
                     Write-Host "Setting the output varible EKSURL $eksCluster.Cluster.Endpoint"
                     Set-OctopusVariable -name "EKSURL" -value $eksCluster.Cluster.Endpoint
                     EOT
@@ -181,6 +207,7 @@ process {
                     # Get context credentials
                     $env:KUBECONFIG = "$PWD/config"
                     aws eks update-kubeconfig --region $region --name $clusterName
+                    kubectl config current-context
                     
                     # Retrieve list of configmaps
                     $configMaps = (kubectl get configmaps --namespace kube-system -o json | ConvertFrom-Json)
@@ -271,13 +298,15 @@ process {
                     $env:KUBECONFIG = "$PWD/config"
                     aws eks update-kubeconfig --region $region --name $clusterName
                     
+                    kubectl config current-context
+                    
                     # Get access token
                     $header = @{ "X-Octopus-ApiKey" = $apiKey }
                     $response = Invoke-RestMethod -Method Post -Uri "https://$($instanceName)/api/users/access-token" -Headers $header 
-                    
                     $accessToken = $response.AccessToken
                     
                     # Install NFS storage class
+                    Write-Host ""
                     helm upgrade --install --atomic `
                     --repo https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/master/charts `
                     --namespace kube-system `
