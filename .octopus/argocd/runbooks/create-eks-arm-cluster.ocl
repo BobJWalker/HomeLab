@@ -113,25 +113,45 @@ process {
                     $subnet2Id = $subnets[1]
                     $securityGroupId = $OctopusParameters['Project.AWS.SecurityGroup.Id']
                     
-                    # Create EKS cluster
-                    Write-Verbose "running aws eks create-cluster --name $clusterName --role-arn $eksRoleArn --resources-vpc-config subnetIds=$subnet1Id,$subnet2Id,securityGroupIds=$securityGroupId --tags octopus-environment=Production,octopus-role=argocd-managed"
-                    $eksCluster = aws eks create-cluster --name $clusterName --role-arn $eksRoleArn --resources-vpc-config subnetIds=$subnet1Id,$subnet2Id,securityGroupIds=$securityGroupId --tags octopus-environment=Production,octopus-role=argocd-managed
-                    $eksCluster = $eksCluster | ConvertFrom-JSON
+                    $clusterExists = $false
+                    try {
+                        # Attempt to describe the cluster
+                        $cluster = aws eks describe-cluster `
+                            --name $clusterName `
+                            --query "cluster.status" `
+                            --output text `
+                            -ErrorAction Stop
                     
-                    Write-Host "Waiting for cluster to be done creating..."
-                    while ($eksCluster.Cluster.Status -eq "CREATING")
+                        Write-Host "Cluster '$clusterName' exists. Status: $cluster"
+                        $clusterExists = $true
+                    }
+                    catch {
+                        Write-Host "Cluster '$clusterName' does NOT exist."
+                    }
+                    
+                    if ($clusterExists -eq $false)
                     {
+                      # Create EKS cluster
+                      Write-Verbose "running aws eks create-cluster --name $clusterName --role-arn $eksRoleArn --resources-vpc-config subnetIds=$subnet1Id,$subnet2Id,securityGroupIds=$securityGroupId --tags octopus-environment=Production,octopus-role=argocd-managed"
+                      $eksCluster = aws eks create-cluster --name $clusterName --role-arn $eksRoleArn --resources-vpc-config subnetIds=$subnet1Id,$subnet2Id,securityGroupIds=$securityGroupId --tags octopus-environment=Production,octopus-role=argocd-managed
+                      $eksCluster = $eksCluster | ConvertFrom-JSON
+                    
+                      Write-Host "Waiting for cluster to be done creating..."
+                      while ($eksCluster.Cluster.Status -eq "CREATING")
+                      {
                     	# Wait for cluster to be done creating
                         Write-Verbose "running aws eks describe-cluster --name $clusterName"
                     	$eksCluster = aws eks describe-cluster --name $clusterName
                     	$eksCluster = $eksCluster | ConvertFrom-JSON
+                      }
+                    
+                      Write-Host "Status of cluster: $($eksCluster.Cluster.Status)" 
                     }
                     
-                    Write-Host "Status of cluster: $($eksCluster.Cluster.Status)" 
-                    
                     Write-Host "Creating node group..."
-                    Write-Verbose "running aws eks create-nodegroup --cluster-name $clusterName --nodegroup-name $nodegroupName --subnets $subnet1Id $subnet2Id --ami-type AL2023_ARM_64_STANDARD --instance-types c8g.large --node-role $nodeRoleArn --remote-access ec2SshKey=demo-keypair --scaling-config minSize=1,maxSize=3,desiredSize=1"
-                    $eksNodeGroup = aws eks create-nodegroup --cluster-name $clusterName --nodegroup-name $nodegroupName --subnets $subnet1Id $subnet2Id --ami-type "AL2023_ARM_64_STANDARD" --instance-types "c8g.large" --node-role $nodeRoleArn --remote-access ec2SshKey="demo-keypair" --scaling-config minSize=1,maxSize=3,desiredSize=1
+                    Write-Verbose "running aws eks create-nodegroup --cluster-name $clusterName --nodegroup-name $nodegroupName --subnets $subnet1Id $subnet2Id --ami-type AL2023_ARM_64_STANDARD --instance-types c8g.large --node-role $nodeRoleArn --remote-access ec2SshKey=ShawnSesna-samples-debug --scaling-config minSize=1,maxSize=3,desiredSize=1"
+                    $eksNodeGroup = aws eks create-nodegroup --cluster-name $clusterName --nodegroup-name $nodegroupName --subnets $subnet1Id $subnet2Id --ami-type "AL2023_ARM_64_STANDARD" --instance-types "c8g.large" --node-role $nodeRoleArn --remote-access ec2SshKey="ShawnSesna-samples-debug" --scaling-config minSize=1,maxSize=3,desiredSize=1
+                    
                     $eksNodeGroup = $eksNodeGroup | ConvertFrom-JSON
                     
                     Write-Host "Waiting for node group to be done creating ..."
