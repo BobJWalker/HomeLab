@@ -118,8 +118,18 @@ process {
                       $eksCluster = aws eks describe-cluster --name $clusterName
                       $eksCluster = $eksCluster | ConvertFrom-JSON
                     
-                      $clusterExists = $true
-                      Write-Host "The cluster already exists, skipping the creation"
+                      if ($LASTEXITCODE -eq 0)
+                      {
+                        $clusterExists = $true
+                        Write-Host "The cluster already exists, skipping the creation"
+                      }
+                      else
+                      {
+                        $global:LASTEXITCODE = 0
+                        Write-Host "The cluster does not exist, creating it"
+                      }
+                    
+                      
                     }
                     catch {
                       Write-Host "The cluster does not exist, creating it"
@@ -152,6 +162,7 @@ process {
                       }
                       else{
                         $global:LASTEXITCODE = 0
+                        Write-Host "Node group does not exist, creating it"
                       }
                       
                     }
