@@ -113,24 +113,6 @@ process {
                     $subnet2Id = $subnets[1]
                     $securityGroupId = $OctopusParameters['Project.AWS.SecurityGroup.Id']
                     
-                    $clusterExists = $false
-                    try {
-                        # Attempt to describe the cluster
-                        $cluster = aws eks describe-cluster `
-                            --name $clusterName `
-                            --query "cluster.status" `
-                            --output text `
-                            -ErrorAction Stop
-                    
-                        Write-Host "Cluster '$clusterName' exists. Status: $cluster"
-                        $clusterExists = $true
-                    }
-                    catch {
-                        Write-Host "Cluster '$clusterName' does NOT exist."
-                    }
-                    
-                    if ($clusterExists -eq $false)
-                    {
                       # Create EKS cluster
                       Write-Verbose "running aws eks create-cluster --name $clusterName --role-arn $eksRoleArn --resources-vpc-config subnetIds=$subnet1Id,$subnet2Id,securityGroupIds=$securityGroupId --tags octopus-environment=Production,octopus-role=argocd-managed"
                       $eksCluster = aws eks create-cluster --name $clusterName --role-arn $eksRoleArn --resources-vpc-config subnetIds=$subnet1Id,$subnet2Id,securityGroupIds=$securityGroupId --tags octopus-environment=Production,octopus-role=argocd-managed
@@ -146,7 +128,6 @@ process {
                       }
                     
                       Write-Host "Status of cluster: $($eksCluster.Cluster.Status)" 
-                    }
                     
                     Write-Host "Creating node group..."
                     Write-Verbose "running aws eks create-nodegroup --cluster-name $clusterName --nodegroup-name $nodegroupName --subnets $subnet1Id $subnet2Id --ami-type AL2023_ARM_64_STANDARD --instance-types c8g.large --node-role $nodeRoleArn --remote-access ec2SshKey=ShawnSesna-samples-debug --scaling-config minSize=1,maxSize=3,desiredSize=1"
@@ -264,7 +245,7 @@ process {
 
             container {
                 feed = "dockerhub"
-                image = "#{AWS.ExecutionContainer.Name}"
+                image = "octopusdeploy/worker-tools:6.5.0-ubuntu.22.04"
             }
         }
     }
@@ -335,7 +316,7 @@ process {
 
             container {
                 feed = "dockerhub"
-                image = "#{AWS.ExecutionContainer.Name}"
+                image = "octopusdeploy/worker-tools:6.5.0-ubuntu.22.04"
             }
         }
     }
