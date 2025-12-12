@@ -143,11 +143,17 @@ process {
                     
                     $nodeGroupExists = $false
                     try {
-                      $eksNodeGroup = aws eks describe-nodegroup --cluster-name $clusterName --nodegroup-name $nodegroupName --query "nodegroup.status" -errorAction Stop
+                      $eksNodeGroup = aws eks describe-nodegroup --cluster-name $clusterName --nodegroup-name $nodegroupName --query "nodegroup.status"
                       $eksNodeGroup = $eksNodeGroup | ConvertFrom-JSON
                     
-                      $nodeGroupExists = $true
-                      Write-Host "Node group already exists, skipping the creation"
+                      if ($LASTEXITCODE -eq 0) {
+                        $nodeGroupExists = $true
+                        Write-Host "Node group already exists, skipping the creation"
+                      }
+                      else{
+                        $global:LASTEXITCODE = 0
+                      }
+                      
                     }
                     catch {
                       Write-Host "Node group does not exist, creating it"
