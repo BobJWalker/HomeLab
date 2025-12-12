@@ -130,7 +130,7 @@ process {
                     Write-Host "Status of cluster: $($eksCluster.Cluster.Status)" 
                     
                     Write-Host "Creating node group..."
-                    Write-Verbose "running aws eks create-nodegroup --cluster-name $clusterName --nodegroup-name $nodegroupName --subnets $subnet1Id $subnet2Id --instance-types "c8g.large" --node-role $nodeRoleArn --remote-access ec2SshKey="demo-keypair" --scaling-config minSize=1,maxSize=3,desiredSize=1"
+                    Write-Verbose "running aws eks create-nodegroup --cluster-name $clusterName --nodegroup-name $nodegroupName --subnets $subnet1Id $subnet2Id --instance-types c8g.large --node-role $nodeRoleArn --remote-access ec2SshKey=demo-keypair --scaling-config minSize=1,maxSize=3,desiredSize=1"
                     $eksNodeGroup = aws eks create-nodegroup --cluster-name $clusterName --nodegroup-name $nodegroupName --subnets $subnet1Id $subnet2Id --instance-types "c8g.large" --node-role $nodeRoleArn --remote-access ec2SshKey="demo-keypair" --scaling-config minSize=1,maxSize=3,desiredSize=1
                     $eksNodeGroup = $eksNodeGroup | ConvertFrom-JSON
                     
