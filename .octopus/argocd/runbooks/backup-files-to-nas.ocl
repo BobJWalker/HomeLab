@@ -11,4 +11,51 @@ run_retention_policy {
     type = "Default"
 }
 
-process {}
+process {
+    step "create-network-drive" {
+        name = "Create Network Drive"
+
+        action {
+            action_type = "Octopus.Script"
+            properties = {
+                Octopus.Action.Script.ScriptBody = <<-EOT
+                    $User = "bob"
+                    $rawPassword = $OctopusParameters["Project.NAS.Password"]
+                    $PWord = ConvertTo-SecureString -String $rawPassword -AsPlainText -Force
+                    
+                    Write-Host "Creating the credential for the Unraid User"
+                    $Credential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $User, $PWord
+                    
+                    if ((test-path "X:\Undrive") -eq $false)
+                    {
+                      Write-Host "The X drive does not exist, creating it now"
+                      New-PSDrive -Name X -PSProvider FileSystem -Root \\10.0.0.69\data -Credential $Credential -Persist
+                    }
+                    EOT
+                Octopus.Action.Script.ScriptSource = "Inline"
+                Octopus.Action.Script.Syntax = "PowerShell"
+                OctopusUseBundledTooling = "False"
+            }
+            worker_pool = "homelab-windows"
+        }
+    }
+
+    step "backup-files" {
+        name = "Backup Files"
+
+        action {
+            action_type = "Octopus.Script"
+            properties = {
+                Octopus.Action.Script.ScriptBody = <<-EOT
+                    robocopy "C:\Users\Bob\Proton\My files" "X:\Undrive\Proton" /mir /r:2 /mt:16
+                    
+                    exit 0
+                    EOT
+                Octopus.Action.Script.ScriptSource = "Inline"
+                Octopus.Action.Script.Syntax = "PowerShell"
+                OctopusUseBundledTooling = "False"
+            }
+            worker_pool = "homelab-windows"
+        }
+    }
+}
