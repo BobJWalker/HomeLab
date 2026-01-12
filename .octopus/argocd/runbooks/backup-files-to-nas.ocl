@@ -58,4 +58,18 @@ process {
             worker_pool = "homelab-windows"
         }
     }
+
+    step "send-status-email" {
+        condition = "Always"
+        name = "Send Status Email"
+
+        action {
+            action_type = "Octopus.Email"
+            properties = {
+                Octopus.Action.Email.Body = "#{Notification.Body.Text}"
+                Octopus.Action.Email.Subject = "#{Notification.RunbookStatus.Subject.Text}"
+                Octopus.Action.Email.To = "bob@bobjwalker.com"
+            }
+        }
+    }
 }
