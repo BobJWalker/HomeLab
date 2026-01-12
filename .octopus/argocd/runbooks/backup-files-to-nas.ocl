@@ -1,6 +1,8 @@
 name = "Backup Files to NAS"
 default_guided_failure_mode = "EnvironmentDefault"
 description = ""
+environment_scope = "Specified"
+environments = ["production"]
 multi_tenancy_mode = "Tenanted"
 
 connectivity_policy {
