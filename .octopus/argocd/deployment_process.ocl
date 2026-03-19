@@ -11,6 +11,10 @@ process_template "configure-k8s-cluster" {
     parameter "Template.K8s.Target" {
         value = "argocd-managed"
     }
+
+    parameter "Template.Web.EntryPoint" {
+        value = "80"
+    }
 }
 
 process_template "send-notification" {
