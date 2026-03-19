@@ -1,0 +1,24 @@
+process_template "configure-k8s-cluster" {
+    name = "Configure K8s Cluster"
+    process_template_slug = "infrastructure-configure-homelab"
+    version_mask = "1.X"
+
+    package_parameter "Template.Traefik.Package" {
+        feed = "traefik-helm-feed"
+        package_id = "traefik"
+    }
+
+    parameter "Template.K8s.Target" {
+        value = "argocd-managed"
+    }
+}
+
+process_template "send-notification" {
+    name = "Send Notification"
+    process_template_slug = "notification-emails"
+    version_mask = "1.X"
+
+    parameter "Template.EmailTeam" {
+        value = "Teams-81"
+    }
+}
