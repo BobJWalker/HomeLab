@@ -6,6 +6,7 @@ process_template "configure-k8s-cluster" {
     package_parameter "Template.Traefik.Package" {
         feed = "traefik-helm-feed"
         package_id = "traefik"
+        version = "37.4.0"
     }
 
     parameter "Template.K8s.Target" {
