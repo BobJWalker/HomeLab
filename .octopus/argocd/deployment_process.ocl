@@ -1,11 +1,26 @@
 process_template "configure-k8s-cluster" {
     name = "Configure K8s Cluster"
     process_template_slug = "infrastructure-configure-homelab"
-    version_mask = "1.X"
+    version_mask = "2.X"
 
     package_parameter "Template.Traefik.Package" {
         feed = "traefik-helm-feed"
         package_id = "traefik"
+    }
+
+    package_parameter "Template.Registry.Package" {
+        feed = "dockerhub"
+        package_id = "registry"
+    }
+
+    package_parameter "Template.MailPit.Package" {
+        feed = "dockerhub"
+        package_id = "axllent/mailpit"
+    }
+
+    package_parameter "Template.Argo.Package" {
+        feed = "argo-helm"
+        package_id = "argo-cd"
     }
 
     parameter "Template.K8s.Target" {
@@ -14,6 +29,10 @@ process_template "configure-k8s-cluster" {
 
     parameter "Template.Web.EntryPoint" {
         value = "80"
+    }
+
+    parameter "Template.K8s.WorkerPool" {
+        value = "#{Standards.Worker.Pool}"
     }
 }
 
