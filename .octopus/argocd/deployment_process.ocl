@@ -23,16 +23,16 @@ process_template "configure-k8s-cluster" {
         package_id = "argo-cd"
     }
 
-    parameter "Template.K8s.Target" {
-        value = "argocd-managed"
-    }
-
     parameter "Template.Web.EntryPoint" {
         value = "80"
     }
 
     parameter "Template.K8s.WorkerPool" {
         value = "#{Standards.Worker.Pool}"
+    }
+
+    parameter "Template.K8s.Target" {
+        value = "k8s-infrastructure"
     }
 }
 
